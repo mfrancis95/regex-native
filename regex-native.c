@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 typedef enum {
-    CONCATENATION, EMPTY, KLEENE_PLUS, KLEENE_STAR, PRIMITIVE
+    CONCATENATION, EMPTY, KLEENE_PLUS, KLEENE_STAR, OPTIONAL, PRIMITIVE
 } Type;
 
 typedef struct Regex {
@@ -40,6 +40,13 @@ static Regex *newKleeneStar(Regex *arg) {
     return repetition;
 }
 
+static Regex *newOptional(Regex *arg) {
+    Regex *optional = malloc(sizeof(Regex));
+    optional->arg1 = arg;
+    optional->type = OPTIONAL;
+    return optional;
+}
+
 static Regex *newPrimitive(char character) {
     Regex *primitive = malloc(sizeof(Regex));
     primitive->character = character;
@@ -54,6 +61,9 @@ static Regex *parseBase(int *index, char *string) {
 static Regex *parseFactor(int *index, char *string) {
     Regex *base = parseBase(index, string);
     switch (string[*index]) {
+        case '?':
+            (*index)++;
+            return newOptional(base);
         case '*':
             (*index)++;
             return newKleeneStar(base);
@@ -91,6 +101,13 @@ static void printKleeneStar(Regex *regex) {
     }
 }
 
+static void printOptional(Regex *regex) {
+    switch (regex->arg1->type) {
+        case PRIMITIVE:
+            printf("if(argv[1][index]=='%c')index++;", regex->arg1->character);
+    }
+}
+
 static void printConcatenation(Regex *regex) {
     switch (regex->arg1->type) {
         case CONCATENATION:
@@ -101,7 +118,10 @@ static void printConcatenation(Regex *regex) {
             break;
         case KLEENE_STAR:
             printKleeneStar(regex->arg1);
-            break;            
+            break;
+        case OPTIONAL:
+            printOptional(regex->arg1);
+            break;
         case PRIMITIVE:
             printPrimitive(regex->arg1);
     }
@@ -114,7 +134,10 @@ static void printConcatenation(Regex *regex) {
             break;
         case KLEENE_STAR:
             printKleeneStar(regex->arg2);
-            break;            
+            break;
+        case OPTIONAL:
+            printOptional(regex->arg2);
+            break;
         case PRIMITIVE:
             printPrimitive(regex->arg2);
     }
@@ -125,6 +148,6 @@ int main(int argc, char *argv[]) {
     Regex *regex = parseTerm(&index, argv[1]);
     printf("int main(int argc,char*argv[]){int index=0;");
     printConcatenation(regex);
-    printf("return 0;}");
+    printf("return argv[1][index];}");
     return 0;
 }
